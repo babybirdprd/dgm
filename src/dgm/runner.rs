@@ -16,6 +16,7 @@ pub struct DgmRunner {
 }
 
 impl DgmRunner {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         max_generation: u32,
         selfimprove_size: u32,
@@ -57,7 +58,7 @@ impl DgmRunner {
                 .file_name()
                 .and_then(|name| name.to_str())
                 .map(|s| s.to_string())
-                .unwrap_or_else(|| generate_run_id())
+                .unwrap_or_else(generate_run_id)
         } else {
             generate_run_id()
         };
@@ -207,5 +208,10 @@ impl DgmRunner {
         }
 
         Ok(())
+    }
+
+    /// Get the API configuration for use in LLM client creation
+    pub fn get_api_config(&self) -> &Config {
+        &self.api_config
     }
 }

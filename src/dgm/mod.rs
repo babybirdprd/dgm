@@ -42,6 +42,7 @@ pub struct DgmConfig {
 }
 
 impl DgmConfig {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         max_generation: u32,
         selfimprove_size: u32,

@@ -24,7 +24,7 @@ pub struct EvaluationConfig {
     pub num_evals_parallel: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DgmConfig {
     pub api: ApiConfig,
     pub docker: DockerConfig,
@@ -59,16 +59,6 @@ impl Default for EvaluationConfig {
             max_workers: 5,
             timeout_seconds: 3600, // 1 hour
             num_evals_parallel: 5,
-        }
-    }
-}
-
-impl Default for DgmConfig {
-    fn default() -> Self {
-        Self {
-            api: ApiConfig::default(),
-            docker: DockerConfig::default(),
-            evaluation: EvaluationConfig::default(),
         }
     }
 }
