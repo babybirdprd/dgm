@@ -487,7 +487,7 @@ pub fn create_client_with_config(model: &str, api_config: &crate::config::ApiCon
         let api_key = api_config.aws_access_key_id.clone()
             .or_else(|| std::env::var("AWS_ACCESS_KEY_ID").ok())
             .ok_or_else(|| anyhow::anyhow!("AWS_ACCESS_KEY_ID not found in config or environment"))?;
-        let client_model = model.split('/').next_back().unwrap_or(model);
+        let client_model = model.split('/').last().unwrap_or(model);
         Ok(Box::new(AnthropicClient::new(client_model.to_string(), api_key)))
     } else if model.starts_with("vertex_ai") && model.contains("claude") {
         // For now, we'll use the Anthropic client with Vertex AI endpoint
