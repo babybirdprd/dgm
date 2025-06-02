@@ -78,5 +78,9 @@ async-trait = "0.1"
 # Tar archive handling
 tar = "0.4"
 
+# HTTP body utilities for bollard
+bytes = "1.0"
+http-body-util = "0.1"
+
 [dev-dependencies]
 tokio-test = "0.4"

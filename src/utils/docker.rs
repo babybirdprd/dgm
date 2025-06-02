@@ -1,14 +1,16 @@
 use crate::DgmResult;
 use anyhow::{anyhow, Context};
-use bollard::container::{
-    Config, CreateContainerOptions, RemoveContainerOptions, StartContainerOptions,
-    StopContainerOptions, UploadToContainerOptions,
-};
 use bollard::exec::{CreateExecOptions, StartExecResults};
-use bollard::image::{BuildImageOptions, RemoveImageOptions};
-use bollard::models::{ContainerInspectResponse, HostConfig};
+use bollard::models::{ContainerCreateBody, ContainerInspectResponse, HostConfig};
+use bollard::query_parameters::{
+    BuildImageOptions, CreateContainerOptions, RemoveContainerOptions, RemoveImageOptions,
+    StartContainerOptions, StopContainerOptions, UploadToContainerOptions,
+    InspectContainerOptions, DownloadFromContainerOptions,
+};
 use bollard::Docker;
+use bytes::Bytes;
 use futures::stream::StreamExt;
+use http_body_util::{Either, Full};
 use std::io::Cursor;
 use std::path::Path;
 use std::time::Duration;
@@ -57,13 +59,15 @@ impl DockerManager {
             dockerfile: dockerfile_path
                 .file_name()
                 .and_then(|n| n.to_str())
-                .unwrap_or("Dockerfile"),
-            t: image_name,
+                .unwrap_or("Dockerfile")
+                .to_string(),
+            t: Some(image_name.to_string()),
             rm: true,
             ..Default::default()
         };
 
-        let mut stream = self.client.build_image(options, None, Some(build_context.into()));
+        let body = Either::Left(Full::new(Bytes::from(build_context)));
+        let mut stream = self.client.build_image(options, None, Some(body));
 
         while let Some(msg) = stream.next().await {
             match msg {
@@ -121,7 +125,7 @@ impl DockerManager {
         // Remove existing container with the same name if it exists
         self.remove_existing_container(container_name).await?;
 
-        let config = Config {
+        let config = ContainerCreateBody {
             image: Some(image_name.to_string()),
             working_dir: working_dir.map(|s| s.to_string()),
             env: env_vars,
@@ -136,7 +140,7 @@ impl DockerManager {
         };
 
         let options = CreateContainerOptions {
-            name: container_name,
+            name: Some(container_name.to_string()),
             ..Default::default()
         };
 
@@ -153,7 +157,7 @@ impl DockerManager {
     /// Start a container
     pub async fn start_container(&self, container_id: &str) -> DgmResult<()> {
         self.client
-            .start_container(container_id, None::<StartContainerOptions<String>>)
+            .start_container(container_id, None::<StartContainerOptions>)
             .await
             .context("Failed to start container")?;
 
@@ -164,7 +168,8 @@ impl DockerManager {
     /// Stop a container
     pub async fn stop_container(&self, container_id: &str, timeout_secs: u64) -> DgmResult<()> {
         let options = StopContainerOptions {
-            t: timeout_secs as i64,
+            t: Some(timeout_secs as i32),
+            ..Default::default()
         };
 
         self.client
@@ -194,7 +199,7 @@ impl DockerManager {
 
     /// Remove existing container with the given name if it exists
     async fn remove_existing_container(&self, container_name: &str) -> DgmResult<()> {
-        match self.client.inspect_container(container_name, None).await {
+        match self.client.inspect_container(container_name, None::<InspectContainerOptions>).await {
             Ok(container_info) => {
                 info!("Removing existing container '{}'", container_name);
 
@@ -329,8 +334,9 @@ impl DockerManager {
             ..Default::default()
         };
 
+        let body = Either::Left(Full::new(Bytes::from(tar_data)));
         self.client
-            .upload_to_container(container_id, Some(options), tar_data.into())
+            .upload_to_container(container_id, Some(options), body)
             .await
             .context("Failed to upload to container")?;
 
@@ -368,9 +374,13 @@ impl DockerManager {
         }
 
         // Download from container
+        let options = DownloadFromContainerOptions {
+            path: source_path.to_string_lossy().to_string(),
+            ..Default::default()
+        };
         let mut stream = self
             .client
-            .download_from_container::<String>(&source_path.to_string_lossy(), None);
+            .download_from_container(container_id, Some(options));
 
         let mut tar_data = Vec::new();
         while let Some(chunk) = stream.next().await {
@@ -492,7 +502,7 @@ impl DockerManager {
     /// Get container information
     pub async fn inspect_container(&self, container_id: &str) -> DgmResult<ContainerInspectResponse> {
         self.client
-            .inspect_container(container_id, None)
+            .inspect_container(container_id, None::<InspectContainerOptions>)
             .await
             .context("Failed to inspect container")
             .map_err(Into::into)
