@@ -494,7 +494,7 @@ pub fn create_client_with_config(model: &str, api_config: &crate::config::ApiCon
         // In a full implementation, you'd want a separate Vertex AI client
         let api_key = std::env::var("GOOGLE_APPLICATION_CREDENTIALS")
             .map_err(|_| anyhow::anyhow!("GOOGLE_APPLICATION_CREDENTIALS environment variable not set"))?;
-        let client_model = model.split('/').last().unwrap_or(model);
+        let client_model = model.split('/').next_back().unwrap_or(model);
         Ok(Box::new(AnthropicClient::new(client_model.to_string(), api_key)))
     } else if model.contains("gpt") || model.starts_with("o1-") || model.starts_with("o3-") {
         let api_key = api_config.openai_api_key.clone()
