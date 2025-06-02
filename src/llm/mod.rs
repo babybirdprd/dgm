@@ -465,31 +465,41 @@ impl LlmClient for OpenAiClient {
     }
 }
 
-/// Create an LLM client based on the model name
+/// Create an LLM client based on the model name using environment variables
 pub fn create_client(model: &str) -> DgmResult<Box<dyn LlmClient + Send + Sync>> {
+    use crate::config::DgmConfig;
+    let config = DgmConfig::load()?;
+    create_client_with_config(model, &config.api)
+}
+
+/// Create an LLM client based on the model name and API configuration
+pub fn create_client_with_config(model: &str, api_config: &crate::config::ApiConfig) -> DgmResult<Box<dyn LlmClient + Send + Sync>> {
     info!("Creating LLM client for model: {}", model);
 
     if model.starts_with("claude-") {
-        let api_key = std::env::var("ANTHROPIC_API_KEY")
-            .map_err(|_| anyhow::anyhow!("ANTHROPIC_API_KEY environment variable not set"))?;
+        let api_key = api_config.anthropic_api_key.clone()
+            .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok())
+            .ok_or_else(|| anyhow::anyhow!("ANTHROPIC_API_KEY not found in config or environment"))?;
         Ok(Box::new(AnthropicClient::new(model.to_string(), api_key)))
     } else if model.starts_with("bedrock") && model.contains("claude") {
         // For now, we'll use the Anthropic client with Bedrock endpoint
         // In a full implementation, you'd want a separate Bedrock client
-        let api_key = std::env::var("AWS_ACCESS_KEY_ID")
-            .map_err(|_| anyhow::anyhow!("AWS_ACCESS_KEY_ID environment variable not set"))?;
-        let client_model = model.split('/').last().unwrap_or(model);
+        let api_key = api_config.aws_access_key_id.clone()
+            .or_else(|| std::env::var("AWS_ACCESS_KEY_ID").ok())
+            .ok_or_else(|| anyhow::anyhow!("AWS_ACCESS_KEY_ID not found in config or environment"))?;
+        let client_model = model.split('/').next_back().unwrap_or(model);
         Ok(Box::new(AnthropicClient::new(client_model.to_string(), api_key)))
     } else if model.starts_with("vertex_ai") && model.contains("claude") {
         // For now, we'll use the Anthropic client with Vertex AI endpoint
         // In a full implementation, you'd want a separate Vertex AI client
         let api_key = std::env::var("GOOGLE_APPLICATION_CREDENTIALS")
             .map_err(|_| anyhow::anyhow!("GOOGLE_APPLICATION_CREDENTIALS environment variable not set"))?;
-        let client_model = model.split('/').last().unwrap_or(model);
+        let client_model = model.split('/').next_back().unwrap_or(model);
         Ok(Box::new(AnthropicClient::new(client_model.to_string(), api_key)))
     } else if model.contains("gpt") || model.starts_with("o1-") || model.starts_with("o3-") {
-        let api_key = std::env::var("OPENAI_API_KEY")
-            .map_err(|_| anyhow::anyhow!("OPENAI_API_KEY environment variable not set"))?;
+        let api_key = api_config.openai_api_key.clone()
+            .or_else(|| std::env::var("OPENAI_API_KEY").ok())
+            .ok_or_else(|| anyhow::anyhow!("OPENAI_API_KEY not found in config or environment"))?;
         Ok(Box::new(OpenAiClient::new(model.to_string(), api_key)))
     } else if model.starts_with("deepseek-") {
         let api_key = std::env::var("DEEPSEEK_API_KEY")

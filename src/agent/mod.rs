@@ -22,13 +22,13 @@ pub struct AgenticSystem {
     base_commit: String,
     chat_history_file: PathBuf,
     test_description: Option<String>,
-    self_improve: bool,
     instance_id: String,
     llm_client: Box<dyn LlmClient + Send + Sync>,
     tool_registry: Arc<ToolRegistry>,
 }
 
 impl AgenticSystem {
+    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         problem_statement: String,
         git_tempdir: PathBuf,
@@ -60,7 +60,6 @@ impl AgenticSystem {
             base_commit,
             chat_history_file,
             test_description,
-            self_improve,
             instance_id,
             llm_client,
             tool_registry,
