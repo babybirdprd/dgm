@@ -61,7 +61,7 @@ uuid = { version = "1.0", features = ["v4"] }
 rayon = "1.0"
 
 # Backoff for retries
-backoff = "0.4"
+backoff = { version = "0.4", features = ["tokio"] }
 
 # Environment variables
 dotenv = "0.15"
