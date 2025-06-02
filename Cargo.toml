@@ -75,5 +75,8 @@ pathdiff = "0.2"
 # Async trait support
 async-trait = "0.1"
 
+# Tar archive handling
+tar = "0.4"
+
 [dev-dependencies]
 tokio-test = "0.4"
